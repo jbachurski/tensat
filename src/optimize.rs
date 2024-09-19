@@ -68,6 +68,7 @@ impl CostModel {
 /// - `e_m`: each entry is the list of nodes i within eclass m
 /// - `h_i`: each entry is the list of children EClass indices for node i
 /// - `cost_i`: self cost for each node i
+/// - `fus_i`: fusability of each node i
 /// - `g_i`: which EClass index does node i belong to
 /// - `root_m`: EClass index of the root eclass
 /// - `i_to_nodes: Vector of enodes, ordered by index i
@@ -81,6 +82,7 @@ pub fn prep_ilp_data(
     Vec<Vec<usize>>,
     Vec<Vec<usize>>,
     Vec<f32>,
+    Vec<bool>,
     Vec<usize>,
     usize,
     Vec<Mdl>,
@@ -101,6 +103,7 @@ pub fn prep_ilp_data(
     let mut h_i: Vec<Vec<usize>> = Vec::with_capacity(num_nodes);
     let mut cost_i: Vec<f32> = Vec::with_capacity(num_nodes);
     let mut g_i: Vec<usize> = Vec::with_capacity(num_nodes);
+    let mut fus_i: Vec<bool> = Vec::with_capacity(num_nodes);
     let mut blacklist_i: Vec<usize> = Vec::new();
 
     let mut i = 0;
@@ -120,6 +123,34 @@ pub fn prep_ilp_data(
             );
             cost_i.push(cost_model.get_self_cost(egraph, node));
             g_i.push(m);
+            use crate::model::Mdl::*;
+            fus_i.push(match node {
+                Input(..) => true,  
+                CompareOp(..) => true,
+                BroadcastInDimOp(..) => true, 
+                ConvertOp(..) => true,
+                ReshapeOp(..) => true,
+                GatherOp(..) => true,
+                ConcatenateOp(..) => true,
+                SliceOp(..) => true, 
+                TransposeOp(..) => true,
+                MulOp(..) => true,
+                AddOp(..) => true,
+                DivOp(..) => true,
+                SubtractOp(..) => true,
+                MinOp(..) => true,
+                MinOp(..) => true,
+                NegOp(..) => true, 
+                TanhOp(..) => true, 
+                ExpOp(..) => true,
+                IotaOp(..) => true, 
+                DynamicUpdateSliceOp(..) => true,
+                DynamicSliceOp(..) => true,
+                ScatterOp(..) => true,
+                ReturnOp(..) => true,
+                BlackBox(..) => false,
+                _ => false,
+            });
             i += 1;
         }
     }
@@ -131,6 +162,7 @@ pub fn prep_ilp_data(
         e_m,
         h_i,
         cost_i,
+        fus_i,
         g_i,
         root_m,
         i_to_nodes,

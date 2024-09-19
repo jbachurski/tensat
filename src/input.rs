@@ -1135,7 +1135,7 @@ fn extract_by_ilp(
     cost_model: &CostModel,
 ) -> (RecExpr<Mdl>, f32) {
     // Prepare data for ILP formulation, save to json
-    let (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes, blacklist_i) =
+    let (m_id_map, e_m, h_i, cost_i, fus_i, g_i, root_m, i_to_nodes, blacklist_i) =
         prep_ilp_data(egraph, root, cost_model);
 
     println!("prepped ilp data");
@@ -1143,6 +1143,7 @@ fn extract_by_ilp(
         "e_m": e_m,
         "h_i": h_i,
         "cost_i": cost_i,
+        "fus_i": fus_i,
         "g_i": g_i,
         "root_m": root_m,
         "blacklist_i": blacklist_i,
@@ -1165,6 +1166,7 @@ fn extract_by_ilp(
     if no_order {
         arg_vec.push("--no_order");
     }
+    arg_vec.push("--fusion-costs");
     let time_lim = "1000";
     let num_thread = "8";
     arg_vec.push("--time_lim_sec");

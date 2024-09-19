@@ -467,13 +467,14 @@ fn extract_by_ilp(
     cost_model: &CostModel,
 ) -> (RecExpr<Mdl>, f32) {
     // Prepare data for ILP formulation, save to json
-    let (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes, blacklist_i) =
+    let (m_id_map, e_m, h_i, cost_i, fus_i, g_i, root_m, i_to_nodes, blacklist_i) =
         prep_ilp_data(egraph, root, cost_model);
 
     let data = json!({
         "e_m": e_m,
         "h_i": h_i,
         "cost_i": cost_i,
+        "fus_i": fus_i,
         "g_i": g_i,
         "root_m": root_m,
         "blacklist_i": blacklist_i,
@@ -512,6 +513,7 @@ fn extract_by_ilp(
     let order_var_int = matches.is_present("order_var_int");
     let class_constraint = matches.is_present("class_constraint");
     let no_order = matches.is_present("no_order");
+    let fusion_costs = matches.is_present("fusion_costs");
     let mut arg_vec = vec!["extractor/extract.py"];
     if order_var_int {
         arg_vec.push("--order_var_int");
@@ -524,6 +526,9 @@ fn extract_by_ilp(
     }
     if initialize {
         arg_vec.push("--initialize")
+    }
+    if fusion_costs {
+        arg_vec.push("--fusion-costs")
     }
     if let Some(time_lim) = matches.value_of("ilp_time_sec") {
         arg_vec.push("--time_lim_sec");

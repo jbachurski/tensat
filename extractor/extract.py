@@ -20,6 +20,8 @@ def get_args():
         help='To print out solution')
     parser.add_argument('--initialize', action='store_true', default=False,
         help='initialize with greedy solution')
+    parser.add_argument('--fusion-costs', action='store_true', default=False,
+        help='model costs of kernel fusion')
 
     return parser.parse_args()
 
@@ -37,6 +39,7 @@ def main():
         data = json.load(f)
 
     costs = data['cost_i']
+    fus = data['fus_i']
     e = data['e_m']
     h = data['h_i']
     g = data['g_i']
@@ -110,9 +113,39 @@ def main():
     for j in blacklist_i:
         solver.Add(x[j] == 0)
 
+    # fusion shenanigans
+    can_fuse_node_of_class = {}
+    for j in range(num_classes):
+        can_fuse_node_of_class[j] = solver.IntVar(0, 1, 'can_fuse_node_of_class[%i]' % j)
+
+    for i in range(num_nodes):
+        if not fus[i]:
+            # a class is fusable only if no un-fusable nodes are chosen
+            solver.Add(can_fuse_node_of_class[g[i]] <= 1 - x[i])
+    
+    can_fuse_node_with_children = {}
+    for i in range(num_nodes):
+        can_fuse_node_with_children[i] = solver.IntVar(0, len(h[i]), 'can_fuse_node_with_children[%i]' % j)
+        if not fus[i]:
+            # if the node itself cannot fuse, it can never fuse
+            solver.Add(can_fuse_node_with_children[i] <= 0)
+        # count children that can fuse
+        solver.Add(can_fuse_node_with_children[i] <= sum(can_fuse_node_of_class[m] for m in h[i]))
+
+    fuse_ratio = {}
+    for i in range(num_nodes):
+        fuse_ratio[i] = solver.IntVar(0, 1, 'fuse_ratio[%i]' % j)
+        solver.Add(fuse_ratio[i] <= x[i] * len(h[i]))
+        solver.Add(fuse_ratio[i] <= can_fuse_node_with_children[i])
+
     # Define objective
     obj_expr = [costs[j] * x[j] for j in range(num_nodes)]
-    solver.Minimize(sum(obj_expr))
+    fus_expr = [-(0.9 / max(1, len(h[i]))) * costs[j] * fuse_ratio[j] for j in range(num_nodes)]
+
+    solver.Minimize(
+        sum(obj_expr) 
+        # + sum(fus_expr)
+    )
 
     # Set initial solutions
     if args.initialize:
@@ -167,8 +200,10 @@ def main():
 
     # Store results
     solved_x = [int(x[j].solution_value()) for j in range(num_nodes)]
+    solved_x_f = [int(fuse_ratio[j].solution_value()) for j in range(num_nodes)]
     result_dict = {}
     result_dict["solved_x"] = solved_x
+    result_dict["solved_x_f"] = solved_x_f
     result_dict["cost"] = solver.Objective().Value()
     result_dict["time"] = solve_time / 1000
     with open('./tmp/solved.json', 'w') as f:
